@@ -21,7 +21,6 @@ export async function callImageProvider({
     const validRatios = ["1:1", "4:3", "3:4", "16:9", "9:16"];
     const ratio = aspectRatio && validRatios.includes(aspectRatio) ? aspectRatio : "9:16";
 
-    // Usamos Record<string, any> para evitar errores de tipo al añadir campos opcionales
     const payload: Record<string, any> = {
         model: "image-01",
         prompt: prompt,
