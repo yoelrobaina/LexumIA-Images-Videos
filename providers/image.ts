@@ -1,7 +1,6 @@
 import { buildTurboPrompt } from "@lib/turboPrompt";
 import type { PromptJson } from "@lib/promptTypes";
 
-// URL correcta según documentación de Minimax
 const IMAGE_API_URL = process.env.IMAGE_API_URL || "https://api.minimax.io/v1/image_generation";
 const IMAGE_API_TOKEN = process.env.IMAGE_API_TOKEN;
 
@@ -18,23 +17,19 @@ export async function callImageProvider({
         throw new Error("Missing IMAGE_API_TOKEN environment variable");
     }
 
-    // Construir el prompt (igual que antes)
     const prompt = buildTurboPrompt(promptJson);
     console.log(`[Minimax] Generating image with prompt: ${prompt.slice(0, 100)}...`);
 
-    // Mapear aspect ratio (Minimax soporta 1:1, 16:9, etc.)
     const validRatios = ["1:1", "4:3", "3:4", "16:9", "9:16"];
     const ratio = aspectRatio && validRatios.includes(aspectRatio) ? aspectRatio : "1:1";
 
-    // Construir payload según documentación de Minimax
     const payload: Record<string, any> = {
         model: "image-01",
         prompt: prompt,
         aspect_ratio: ratio,
-        response_format: "url"  // Puede ser "url" o "base64"
+        response_format: "url"
     };
 
-    // Si hay imagen de referencia, usar subject_reference (no image_urls)
     if (referenceImageUrl) {
         payload.subject_reference = [
             {
@@ -44,7 +39,6 @@ export async function callImageProvider({
         ];
     }
 
-    // Llamar a la API de Minimax
     const response = await fetch(IMAGE_API_URL, {
         method: "POST",
         headers: {
@@ -54,10 +48,9 @@ export async function callImageProvider({
         body: JSON.stringify(payload)
     });
 
-    // Obtener respuesta como texto para debug
     const textResponse = await response.text();
     console.log(`[Minimax] Status: ${response.status}`);
-    console.log(`[Minimax] Raw response (first 300 chars): ${textResponse.slice(0, 300)}`);
+    console.log(`[Minimax] Raw response (first 500 chars): ${textResponse.slice(0, 500)}`);
 
     let data;
     try {
@@ -70,11 +63,22 @@ export async function callImageProvider({
         throw new Error(`Minimax API error (${response.status}): ${data.message || JSON.stringify(data)}`);
     }
 
-    // Extraer URL de la imagen según la respuesta de Minimax
-    // La documentación muestra que puede venir en data.images[0].url o data.image_urls[0]
-    let imageUrl = data?.data?.images?.[0]?.url || data?.images?.[0]?.url || data?.image_urls?.[0];
+    // 🔧 CORRECCIÓN: buscar image_urls en la raíz
+    let imageUrl = data?.image_urls?.[0];
+    
+    // Fallbacks por si la respuesta tiene otra estructura
+    if (!imageUrl && data?.data?.image_urls?.[0]) {
+        imageUrl = data.data.image_urls[0];
+    }
+    if (!imageUrl && data?.images?.[0]?.url) {
+        imageUrl = data.images[0].url;
+    }
+    if (!imageUrl && data?.data?.images?.[0]?.url) {
+        imageUrl = data.data.images[0].url;
+    }
 
     if (!imageUrl) {
+        console.error("[Minimax] Full response:", JSON.stringify(data, null, 2));
         throw new Error("No image URL in Minimax response");
     }
 
