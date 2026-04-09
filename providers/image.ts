@@ -17,33 +17,27 @@ export async function callImageProvider({
         throw new Error("Missing IMAGE_API_TOKEN environment variable");
     }
 
-    // Construir el prompt estilo Minimax (puedes usar el turboPrompt o el raw)
     const prompt = buildTurboPrompt(promptJson);
-    console.log(`[Minimax] Generating image with prompt: ${prompt.slice(0, 100)}...`);
-
-    // Mapear aspect ratio al formato que espera Minimax
     const validRatios = ["1:1", "4:3", "3:4", "16:9", "9:16"];
     const ratio = aspectRatio && validRatios.includes(aspectRatio) ? aspectRatio : "9:16";
 
-    // Preparar el payload según la documentación de Minimax
-    const payload = {
-        model: "image-01", // o el modelo que tengas disponible
+    // Usamos Record<string, any> para evitar errores de tipo al añadir campos opcionales
+    const payload: Record<string, any> = {
+        model: "image-01",
         prompt: prompt,
         aspect_ratio: ratio,
-        n: 1  // número de imágenes a generar
+        n: 1
     };
 
-    // Si hay imagen de referencia (image-to-image), Minimax lo maneja con "image_urls"
     if (referenceImageUrl) {
-        payload["image_urls"] = [referenceImageUrl];
+        payload.image_urls = [referenceImageUrl];
     }
 
-    // Llamar a la API de Minimax
     const response = await fetch(IMAGE_API_URL, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${IMAGE_API_TOKEN}`
+            Authorization: `Bearer ${IMAGE_API_TOKEN}`
         },
         body: JSON.stringify(payload)
     });
@@ -54,7 +48,6 @@ export async function callImageProvider({
         throw new Error(`Minimax API error: ${data.message || JSON.stringify(data)}`);
     }
 
-    // La respuesta de Minimax suele tener data.images[0].url (verifica documentación)
     const imageUrl = data?.data?.images?.[0]?.url || data?.images?.[0]?.url || data?.url;
 
     if (!imageUrl) {
