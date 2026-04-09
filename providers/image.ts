@@ -27,7 +27,7 @@ export async function callImageProvider({
         model: "image-01",
         prompt: prompt,
         aspect_ratio: ratio,
-        response_format: "base64"  // <--- CAMBIO CLAVE: base64 en lugar de url
+        response_format: "base64"
     };
 
     if (referenceImageUrl) {
@@ -50,6 +50,7 @@ export async function callImageProvider({
 
     const textResponse = await response.text();
     console.log(`[Minimax] Status: ${response.status}`);
+    console.log(`[Minimax] Respuesta completa (primeros 1000 chars): ${textResponse.slice(0, 1000)}`);
 
     let data;
     try {
@@ -62,18 +63,23 @@ export async function callImageProvider({
         throw new Error(`Error API (${response.status}): ${data.message || JSON.stringify(data)}`);
     }
 
-    // Extraer base64 (viene en data.image_base64 o data.images[0].image_base64)
-    let base64String = data?.image_base64?.[0] || data?.data?.image_base64?.[0] || data?.images?.[0]?.image_base64;
-    if (!base64String && data?.data?.images?.[0]?.image_base64) {
+    // Extraer base64 según la estructura REAL de Minimax (con data anidado)
+    let base64String = null;
+    if (data?.data?.image_base64 && Array.isArray(data.data.image_base64) && data.data.image_base64.length > 0) {
+        base64String = data.data.image_base64[0];
+    } else if (data?.image_base64 && Array.isArray(data.image_base64) && data.image_base64.length > 0) {
+        base64String = data.image_base64[0];
+    } else if (data?.data?.images && Array.isArray(data.data.images) && data.data.images[0]?.image_base64) {
         base64String = data.data.images[0].image_base64;
+    } else if (data?.images && Array.isArray(data.images) && data.images[0]?.image_base64) {
+        base64String = data.images[0].image_base64;
     }
 
     if (!base64String) {
-        console.error("Respuesta completa:", JSON.stringify(data, null, 2));
-        throw new Error("No se recibió base64 de la imagen");
+        console.error("[Minimax] No se encontró base64 en la respuesta. Respuesta completa:", JSON.stringify(data, null, 2));
+        throw new Error("No se recibió base64 de la imagen. Revisa los logs para ver la estructura real.");
     }
 
-    // Construir data URL (el frontend la acepta sin problemas)
     const dataUrl = `data:image/jpeg;base64,${base64String}`;
     return { image_url: dataUrl };
 }
