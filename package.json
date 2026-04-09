@@ -8,10 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "vitest run",
-    "capture:og": "node scripts/generateOgImage.mjs",
-    "generate:og": "npm run build",
-    "postbuild": "node scripts/generateOgImage.mjs"
+    "test": "vitest run"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.927.0",
